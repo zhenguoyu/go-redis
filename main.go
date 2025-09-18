@@ -14,6 +14,17 @@ func main() {
 		return
 	}
 	defer l.Close()
+
+	aof, err := NewAof("database.aof")
+	if err != nil {
+		fmt.Println("Error creating AOF:", err.Error())
+		return
+	}
+	defer aof.Close()
+
+	// 从AOF文件中读取数据并恢复到内存
+	aof.Read(aofCallback)
+
 	conn, err := l.Accept()
 	if err != nil {
 		fmt.Println("Error accepting: ", err.Error())
@@ -39,9 +50,10 @@ func main() {
 			fmt.Println("Empty command array")
 			return
 		}
+
 		cmd := strings.ToUpper(value.array[0].bulk)
-		fmt.Println("Received value:", value)
 		args := value.array[1:]
+		fmt.Println("Received value:", value)
 		fmt.Println("Received args:", args)
 
 		writer := NewWriter(conn)
@@ -52,6 +64,12 @@ func main() {
 			writer.Write(Value{typ: "string", str: ""})
 			continue
 		}
+		if cmd == "SET" || cmd == "HSET" {
+			if err := aof.Write(value); err != nil {
+				fmt.Println("Error writing to AOF:", err.Error(), "Command:", cmd, "Args:", args)
+			}
+		}
+
 		result := handler(args)
 		writer.Write(result)
 		// conn.Write([]byte("+OK\r\n"))

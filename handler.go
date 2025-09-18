@@ -2,6 +2,8 @@ package main
 
 import "sync"
 
+// handler.go 命令处理
+
 var SETs = map[string]string{}
 var SETsMu = sync.RWMutex{}
 
